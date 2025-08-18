@@ -1,0 +1,6 @@
+{
+  "import": [
+    "BigOrangeQWQ/async/event_loop",
+    "BigOrangeQWQ/async/coroutine"
+  ]
+}
