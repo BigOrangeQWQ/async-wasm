@@ -38,12 +38,3 @@ fn EventLoop::run_forever(self : Self) -> Unit {
   }
   self.0.clear()
 }
-
-// 这里调度 Async 提案的轮询
-
-pub enum LoopCoroutineId {
-  MoonBit = 1
-  SubTask = 2
-  Coroutine = 3
-  Stream = 4
-}
