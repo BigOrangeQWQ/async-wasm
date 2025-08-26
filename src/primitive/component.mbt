@@ -160,10 +160,8 @@ pub fn waitable_join(waitable : Int, set : Int) = "$root" "[waitable-join]"
 
 ///|
 #cfg(target="wasm")
-// result_ptr is a pointer to an Int where the result will be stored
 pub fn waitable_set_wait(set : Int, result_ptr : Int) -> Int = "$root" "[waitable-set-wait]"
 
 ///|
 #cfg(target="wasm")
-// result_ptr is a pointer to an Int where the result will be stored
 pub fn waitable_set_poll(set : Int, result_ptr : Int) -> Int = "$root" "[waitable-set-poll]"
