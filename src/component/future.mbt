@@ -10,7 +10,7 @@ pub struct FutureVTable[T] {
   malloc : () -> Int
   free : (Int) -> Unit
   lift : (Int) -> T
-  lower : (T) -> Int
+  lower : (T, Int) -> Unit
 }
 
 ///|
@@ -25,7 +25,7 @@ pub fn[T] FutureVTable::new(
   malloc : () -> Int,
   free : (Int) -> Unit,
   lift : (Int) -> T,
-  lower : (T) -> Int,
+  lower : (T, Int) -> Unit,
 ) -> FutureVTable[T] {
   {
     new,
@@ -92,7 +92,8 @@ pub fn[T] Future::vtable(self : Future[T]) -> FutureVTable[T] {
 
 ///|
 pub async fn[T] Future::async_write(self : Future[T], value : T) -> Unit raise {
-  let buf_ptr = (self.1.lower)(value)
+  let buf_ptr = (self.1.malloc)()
+  (self.1.lower)(value, buf_ptr)
   // defer (self.1.free)(buf_ptr) TODO: may cause read after free,need check
   let status = self.write(buf_ptr)
   defer (self.1.drop_writable)(self.0)
@@ -132,7 +133,36 @@ pub struct StreamVTable[T] {
   malloc : () -> Int
   free : (Int) -> Unit
   lift : (Int) -> T
-  lower : (T) -> Int
+  lower : (T, Int) -> Unit
+}
+
+///|
+pub fn[T] StreamVTable::new(
+  new : () -> UInt64,
+  read : (Int, Int, Int) -> Int,
+  write : (Int, Int, Int) -> Int,
+  cancel_read : (Int) -> Int,
+  cancel_write : (Int) -> Int,
+  drop_readable : (Int) -> Unit,
+  drop_writable : (Int) -> Unit,
+  malloc : () -> Int,
+  free : (Int) -> Unit,
+  lift : (Int) -> T,
+  lower : (T, Int) -> Unit,
+) -> StreamVTable[T] {
+  {
+    new,
+    read,
+    write,
+    cancel_read,
+    cancel_write,
+    drop_readable,
+    drop_writable,
+    malloc,
+    free,
+    lift,
+    lower,
+  }
 }
 
 ///|
@@ -193,7 +223,8 @@ pub fn[T] Stream::vtable(self : Stream[T]) -> StreamVTable[T] {
 
 ///|
 pub async fn[T] Stream::async_write(self : Stream[T], value : T) -> Unit raise {
-  let buf_ptr = (self.1.lower)(value)
+  let buf_ptr = (self.1.malloc)()
+  (self.1.lower)(value, buf_ptr)
   defer (self.1.free)(buf_ptr)
   let status = self.write(buf_ptr, 1)
   defer (self.1.drop_writable)(self.0)
