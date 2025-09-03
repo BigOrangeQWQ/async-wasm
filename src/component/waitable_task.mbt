@@ -39,7 +39,7 @@ pub fn WaitableTask::drop(self : Self) -> Unit {
 }
 
 ///|
-/// 这里也很明显
+/// TODO: it may be need WaitableTask::spawn_no_wait
 pub fn WaitableTask::spawn(
   task : Self,
   f : async () -> Unit raise,
@@ -53,10 +53,7 @@ pub fn WaitableTask::spawn(
   task.tasks[waitable] = coro
 }
 
-// 这对吗？
-
 ///|
-/// 这里很明显需要被调度运行一次
 pub fn WaitableTask::spawn_subtask(
   task : Self,
   f : async () -> Unit raise,

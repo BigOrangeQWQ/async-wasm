@@ -1,5 +1,3 @@
-// 这里应该是 BLOCK ON 的原语
-
 ///|
 priv struct EventLoop(Map[Int, @coroutine.Coroutine])
 
