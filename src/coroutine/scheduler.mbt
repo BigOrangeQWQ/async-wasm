@@ -13,8 +13,6 @@
 // limitations under the License.
 
 ///|
-
-///|
 priv struct Scheduler {
   mut coro_id : Int
   mut curr_coro : Coroutine?
@@ -49,7 +47,7 @@ pub fn rschedule() -> Unit {
     let last_coro = scheduler.curr_coro
     scheduler.curr_coro = Some(coro)
     if coro.cancelled && !coro.shielded {
-      err_cont(Cancelled)
+      err_cont(Cancelled::Cancelled)
     } else {
       ok_cont(())
     }
