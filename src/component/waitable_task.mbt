@@ -110,16 +110,21 @@ pub fn callback(event : Int, waitable_id : Int, code : Int) -> Int {
 }
 
 ///|
-pub async fn with_waitable_set(
-  f : async (WaitableTask) -> Unit raise,
+pub fn WaitableTask::with_waitable_set(
+  self : Self,
+  f : async (Self) -> Unit raise,
+  is_drop? : Bool = false,
 ) -> Unit noraise {
-  let ctx = get_or_create_waitable_set()
   let parent = @coroutine.spawn(fn() {
-    defer (if ctx.tasks.is_empty() {
-      ctx.drop()
-      task_map.remove(ctx.id)
+    defer (if self.tasks.is_empty() {
+      task_map.remove(self.id)
+      if is_drop {
+        // runner will drop the waitable set
+        // export async function needs to keep the waitable set
+        self.drop()
+      }
     })
-    f(ctx)
+    f(self)
   })
   parent.run()
   @coroutine.rschedule() // start the parent coroutine 
