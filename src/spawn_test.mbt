@@ -134,7 +134,7 @@ test "spawn error2" {
   let buf = StringBuilder::new()
   let result = try? @async.with_event_loop(fn(root) {
       root.spawn_bg(fn() {
-        let context = @component.current_waitable_set()
+        @async.pause()
         raise Err
       })
       root.spawn_bg(fn() {
