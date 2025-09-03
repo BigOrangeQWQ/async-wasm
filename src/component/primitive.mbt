@@ -1,20 +1,21 @@
 ///|
 pub(all) enum SubtaskStatus {
-  Starting = 0
-  Started = 1
-  Returned = 2
-  StartCancelled = 3
-  ReturnCancelled = 4
+  Starting(Int)
+  Started(Int)
+  Returned(Int)
+  StartCancelled(Int)
+  ReturnCancelled(Int)
 }
 
 ///|
 pub fn SubtaskStatus::decode(int : Int) -> SubtaskStatus {
+  let handle = int >> 4
   match int & 0xf {
-    0 => Starting
-    1 => Started
-    2 => Returned
-    3 => StartCancelled
-    4 => ReturnCancelled
+    0 => Starting(handle)
+    1 => Started(handle)
+    2 => Returned(handle)
+    3 => StartCancelled(handle)
+    4 => ReturnCancelled(handle)
     _ => panic()
   }
 }
@@ -22,11 +23,22 @@ pub fn SubtaskStatus::decode(int : Int) -> SubtaskStatus {
 ///|
 pub fn SubtaskStatus::encode(self : Self) -> Int {
   match self {
-    Starting => 0
-    Started => 1
-    Returned => 2
-    StartCancelled => 3
-    ReturnCancelled => 4
+    Starting(_) => 0
+    Started(_) => 1
+    Returned(_) => 2
+    StartCancelled(_) => 3
+    ReturnCancelled(_) => 4
+  }
+}
+
+///|
+pub fn SubtaskStatus::handle(self : Self) -> Int {
+  match self {
+    Starting(handle) => handle
+    Started(handle) => handle
+    Returned(handle) => handle
+    StartCancelled(handle) => handle
+    ReturnCancelled(handle) => handle
   }
 }
 
@@ -38,7 +50,7 @@ pub(all) enum EventCode {
   StreamWrite = 3
   FutureRead = 4
   FutureWrite = 5
-  Cancel = 6
+  TaskCancel = 6
 }
 
 ///|
@@ -50,7 +62,7 @@ pub fn EventCode::decode(int : Int) -> EventCode {
     3 => StreamWrite
     4 => FutureRead
     5 => FutureWrite
-    6 => Cancel
+    6 => TaskCancel
     _ => panic()
   }
 }
@@ -64,7 +76,7 @@ pub fn EventCode::encode(self : Self) -> Int {
     StreamWrite => 3
     FutureRead => 4
     FutureWrite => 5
-    Cancel => 6
+    TaskCancel => 6
   }
 }
 
@@ -73,7 +85,7 @@ pub(all) enum WaitableStatus {
   Completed(Int)
   Dropped(Int)
   Cancelled(Int)
-  Block
+  Blocking
 }
 
 ///|
@@ -82,7 +94,7 @@ let waitable_status_block : Int = 0xffff_ffff
 ///|
 pub fn WaitableStatus::decode(int : Int) -> WaitableStatus {
   if int == waitable_status_block {
-    return Block
+    return Blocking
   }
   let amt = int >> 4
   match int & 0xf {
@@ -131,37 +143,39 @@ pub fn CallbackCode::decode(int : Int) -> CallbackCode {
 // Component async primitives
 
 ///|
-#cfg(target="wasm")
 pub fn yield_blocking() -> Bool = "$root" "[yield]"
 
 ///|
-#cfg(target="wasm")
-pub fn backpressure_set() -> Int = "$root" "[backpressure_set]"
+pub fn backpressure_set() -> Int = "$root" "[backpressure-set]"
 
 ///|
-#cfg(target="wasm")
-pub fn subtask_cancel(id : Int) -> Int = "$root" "[subtask_cancel]"
+pub fn subtask_cancel(id : Int) -> Int = "$root" "[subtask-cancel]"
 
 ///|
-#cfg(target="wasm")
-pub fn subtask_drop(id : Int) = "$root" "[subtask_drop]"
+pub fn subtask_drop(id : Int) = "$root" "[subtask-drop]"
 
 ///|
-#cfg(target="wasm")
+pub fn context_set(task : Int) = "$root" "[context-set-0]"
+
+///|
+pub fn context_get() -> Int = "$root" "[context-get-0]"
+
+///|
+pub fn task_cancel() -> Unit = "$root" "[task-cancel]"
+
+///|
+
+///|
 pub fn waitable_set_new() -> Int = "$root" "[waitable-set-new]"
 
 ///|
-#cfg(target="wasm")
 pub fn waitable_set_drop(set : Int) = "$root" "[waitable-set-drop]"
 
 ///|
-#cfg(target="wasm")
 pub fn waitable_join(waitable : Int, set : Int) = "$root" "[waitable-join]"
 
 ///|
-#cfg(target="wasm")
 pub fn waitable_set_wait(set : Int, result_ptr : Int) -> Int = "$root" "[waitable-set-wait]"
 
 ///|
-#cfg(target="wasm")
 pub fn waitable_set_poll(set : Int, result_ptr : Int) -> Int = "$root" "[waitable-set-poll]"

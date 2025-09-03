@@ -1,0 +1,20 @@
+{
+  "targets": {
+    "waitable_set.mbt": [
+      "wasm"
+    ],
+    "future.mbt": [
+      "wasm"
+    ],
+    "primitive.mbt": [
+      "wasm"
+    ],
+    "ffi.mbt": [
+      "wasm"
+    ]
+  },
+  "warn-list": "-44",
+  "import": [
+    "BigOrangeQWQ/async/coroutine"
+  ]
+}

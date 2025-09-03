@@ -1,0 +1,35 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "BigOrangeQWQ/async/component"
+
+// Values
+
+// Errors
+
+// Types and methods
+pub struct Future[T](Int, FutureVTable[T])
+
+fn[T] Future::cancel_read(Self[T]) -> Int
+fn[T] Future::cancel_write(Self[T]) -> Int
+fn[T] Future::drop_readable(Self[T]) -> Unit
+fn[T] Future::drop_writable(Self[T]) -> Unit
+fn[T] Future::handle(Self[T]) -> Int
+fn[T] Future::new(Int, FutureVTable[T]) -> Self[T]
+fn[T] Future::read(Self[T], Int, Int) -> Int
+fn[T] Future::vtable(Self[T]) -> FutureVTable[T]
+fn[T] Future::write(Self[T], Int, Int) -> Int
+
+pub struct FutureVTable[T] {
+  new : () -> UInt64
+  read : (Int, Int) -> Int
+  write : (Int, Int) -> Int
+  cancel_read : (Int) -> Int
+  cancel_write : (Int) -> Int
+  drop_readable : (Int) -> Unit
+  drop_writable : (Int) -> Unit
+}
+fn[T] FutureVTable::new(() -> UInt64, (Int, Int) -> Int, (Int, Int) -> Int, (Int) -> Int, (Int) -> Int, (Int) -> Unit, (Int) -> Unit) -> Self[T]
+
+// Type aliases
+
+// Traits
+
