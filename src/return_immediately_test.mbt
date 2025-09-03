@@ -47,9 +47,7 @@ test "return_immediately nested" {
       })
     }),
   )
-  inspect(log.to_string(), content=(
-    "Ok(())"
-  ))
+  inspect(log.to_string(), content="Ok(())")
 }
 
 ///|

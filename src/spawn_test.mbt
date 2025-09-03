@@ -46,6 +46,7 @@ test "spawn basic" {
     ),
   )
 }
+
 ///|
 test "spawn error2" {
   let buf = StringBuilder::new()
@@ -126,4 +127,21 @@ test "spawn after cancelled 2" {
       #|Ok(())
     ),
   )
+}
+
+///|
+test "spawn error2" {
+  let buf = StringBuilder::new()
+  let result = try? @async.with_event_loop(fn(root) {
+      root.spawn_bg(fn() {
+        let context = @component.current_waitable_set()
+        raise Err
+      })
+      root.spawn_bg(fn() {
+        @async.pause()
+        buf.write_string("task 1 finished\n")
+      })
+    })
+  buf.write_string(result.to_string())
+  inspect(buf.to_string(), content="Err(Err)")
 }

@@ -109,10 +109,5 @@ test "spawn_loop cancelled1" {
       @async.pause()
     }),
   )
-  inspect(
-    log.to_string(),
-    content=(
-      "Ok(())"
-    ),
-  )
+  inspect(log.to_string(), content="Ok(())")
 }
