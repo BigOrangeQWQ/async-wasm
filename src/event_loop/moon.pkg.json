@@ -1,1 +1,3 @@
-{"import": ["BigOrangeQWQ/async/coroutine"]}
+{"import": [
+    "BigOrangeQWQ/async/coroutine"
+  ]}

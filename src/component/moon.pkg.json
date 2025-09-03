@@ -11,6 +11,9 @@
     ],
     "ffi.mbt": [
       "wasm"
+    ],
+    "waitable_task.mbt": [
+      "wasm"
     ]
   },
   "warn-list": "-44",

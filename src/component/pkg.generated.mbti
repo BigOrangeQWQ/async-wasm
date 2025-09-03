@@ -1,22 +1,164 @@
 // Generated using `moon info`, DON'T EDIT IT
 package "BigOrangeQWQ/async/component"
 
+import(
+  "BigOrangeQWQ/async/coroutine"
+)
+
 // Values
+fn backpressure_set() -> Int
+
+fn bytes2ptr(FixedArray[Byte]) -> Int
+
+fn cabi_realloc(Int, Int, Int, Int) -> Int
+
+fn callback(Int, Int, Int) -> Int
+
+fn context_get() -> Int
+
+fn context_set(Int) -> Unit
+
+fn current_waitable_set() -> WaitableTask?
+
+fn double_array2ptr(FixedArray[Double]) -> Int
+
+fn extend16(Int) -> Int
+
+fn extend8(Int) -> Int
+
+fn f32_to_i32(Float) -> Int
+
+fn f32_to_i64(Float) -> Int64
+
+fn float_array2ptr(FixedArray[Float]) -> Int
+
+fn free(Int) -> Unit
+
+fn get_or_create_waitable_set() -> WaitableTask
+
+fn int64_array2ptr(FixedArray[Int64]) -> Int
+
+fn int_array2ptr(FixedArray[Int]) -> Int
+
+fn load16(Int) -> Int
+
+fn load16_u(Int) -> Int
+
+fn load32(Int) -> Int
+
+fn load64(Int) -> Int64
+
+fn load8(Int) -> Int
+
+fn load8_u(Int) -> Int
+
+fn loadf32(Int) -> Float
+
+fn loadf64(Int) -> Double
+
+fn malloc(Int) -> Int
+
+fn ptr2bytes(Int, Int) -> FixedArray[Byte]
+
+fn ptr2double_array(Int, Int) -> FixedArray[Double]
+
+fn ptr2float_array(Int, Int) -> FixedArray[Float]
+
+fn ptr2int64_array(Int, Int) -> FixedArray[Int64]
+
+fn ptr2int_array(Int, Int) -> FixedArray[Int]
+
+fn ptr2str(Int, Int) -> String
+
+fn ptr2uint64_array(Int, Int) -> FixedArray[UInt64]
+
+fn ptr2uint_array(Int, Int) -> FixedArray[UInt]
+
+fn set_active_task_context(Int) -> Unit
+
+fn store16(Int, Int) -> Unit
+
+fn store32(Int, Int) -> Unit
+
+fn store64(Int, Int64) -> Unit
+
+fn store8(Int, Int) -> Unit
+
+fn storef32(Int, Float) -> Unit
+
+fn storef64(Int, Double) -> Unit
+
+fn str2ptr(String) -> Int
+
+fn subtask_cancel(Int) -> Int
+
+fn subtask_drop(Int) -> Unit
+
+fn task_cancel() -> Unit
+
+let task_map : Map[Int, WaitableTask]
+
+fn uint64_array2ptr(FixedArray[UInt64]) -> Int
+
+fn uint_array2ptr(FixedArray[UInt]) -> Int
+
+fn waitable_join(Int, Int) -> Unit
+
+fn waitable_set_drop(Int) -> Unit
+
+fn waitable_set_new() -> Int
+
+fn waitable_set_poll(Int, Int) -> Int
+
+fn waitable_set_wait(Int, Int) -> Int
+
+async fn with_waitable_set(async (WaitableTask) -> Unit raise) -> Unit
+
+fn yield_blocking() -> Bool
 
 // Errors
 
 // Types and methods
+pub enum CallbackCode {
+  Exit
+  Yield
+  Wait(Int)
+  Cancel(Int)
+}
+fn CallbackCode::decode(Int) -> Self
+fn CallbackCode::encode(Self) -> Int
+
+pub(all) struct Cleanup {
+  address : Int
+  size : Int
+  align : Int
+}
+
+pub(all) enum EventCode {
+  EventNone
+  Subtask
+  StreamRead
+  StreamWrite
+  FutureRead
+  FutureWrite
+  TaskCancel
+}
+fn EventCode::decode(Int) -> Self
+fn EventCode::encode(Self) -> Int
+
 pub struct Future[T](Int, FutureVTable[T])
 
-fn[T] Future::cancel_read(Self[T]) -> Int
-fn[T] Future::cancel_write(Self[T]) -> Int
+async fn[T] Future::async_read(Self[T]) -> T raise
+async fn[T] Future::async_write(Self[T], T) -> Unit raise
+fn[T] Future::cancel_read(Self[T]) -> WaitableStatus
+fn[T] Future::cancel_write(Self[T]) -> WaitableStatus
 fn[T] Future::drop_readable(Self[T]) -> Unit
 fn[T] Future::drop_writable(Self[T]) -> Unit
 fn[T] Future::handle(Self[T]) -> Int
 fn[T] Future::new(Int, FutureVTable[T]) -> Self[T]
-fn[T] Future::read(Self[T], Int, Int) -> Int
+fn[T] Future::read(Self[T], Int) -> WaitableStatus
 fn[T] Future::vtable(Self[T]) -> FutureVTable[T]
-fn[T] Future::write(Self[T], Int, Int) -> Int
+fn[T] Future::write(Self[T], Int) -> WaitableStatus
 
 pub struct FutureVTable[T] {
   new : () -> UInt64
@@ -26,10 +168,89 @@ pub struct FutureVTable[T] {
   cancel_write : (Int) -> Int
   drop_readable : (Int) -> Unit
   drop_writable : (Int) -> Unit
+  malloc : () -> Int
+  free : (Int) -> Unit
+  lift : (Int) -> T
+  lower : (T, Int) -> Unit
 }
-fn[T] FutureVTable::new(() -> UInt64, (Int, Int) -> Int, (Int, Int) -> Int, (Int) -> Int, (Int) -> Int, (Int) -> Unit, (Int) -> Unit) -> Self[T]
+fn[T] FutureVTable::new(() -> UInt64, (Int, Int) -> Int, (Int, Int) -> Int, (Int) -> Int, (Int) -> Int, (Int) -> Unit, (Int) -> Unit, () -> Int, (Int) -> Unit, (Int) -> T, (T, Int) -> Unit) -> Self[T]
+
+pub struct Stream[T](Int, StreamVTable[T])
+
+async fn[T] Stream::async_read(Self[T]) -> T? raise
+async fn[T] Stream::async_write(Self[T], T) -> Unit raise
+fn[T] Stream::cancel_read(Self[T]) -> WaitableStatus
+fn[T] Stream::cancel_write(Self[T]) -> WaitableStatus
+fn[T] Stream::drop_readable(Self[T]) -> Unit
+fn[T] Stream::drop_writable(Self[T]) -> Unit
+fn[T] Stream::handle(Self[T]) -> Int
+fn[T] Stream::new(Int, StreamVTable[T]) -> Self[T]
+fn[T] Stream::read(Self[T], Int, Int) -> WaitableStatus
+fn[T] Stream::vtable(Self[T]) -> StreamVTable[T]
+fn[T] Stream::write(Self[T], Int, Int) -> WaitableStatus
+
+pub struct StreamVTable[T] {
+  new : () -> UInt64
+  read : (Int, Int, Int) -> Int
+  write : (Int, Int, Int) -> Int
+  cancel_read : (Int) -> Int
+  cancel_write : (Int) -> Int
+  drop_readable : (Int) -> Unit
+  drop_writable : (Int) -> Unit
+  malloc : () -> Int
+  free : (Int) -> Unit
+  lift : (Int) -> T
+  lower : (T, Int) -> Unit
+}
+fn[T] StreamVTable::new(() -> UInt64, (Int, Int, Int) -> Int, (Int, Int, Int) -> Int, (Int) -> Int, (Int) -> Int, (Int) -> Unit, (Int) -> Unit, () -> Int, (Int) -> Unit, (Int) -> T, (T, Int) -> Unit) -> Self[T]
+
+pub(all) enum SubtaskStatus {
+  Starting(Int)
+  Started(Int)
+  Returned(Int)
+  StartCancelled(Int)
+  ReturnCancelled(Int)
+}
+fn SubtaskStatus::decode(Int) -> Self
+fn SubtaskStatus::encode(Self) -> Int
+fn SubtaskStatus::handle(Self) -> Int
+
+pub struct WaitableSet(Int)
+fn WaitableSet::as_raw(Self) -> Int
+fn WaitableSet::drop(Self) -> Unit
+fn WaitableSet::from_raw(Int) -> Self
+fn WaitableSet::inner(Self) -> Int
+fn WaitableSet::join(Self, Int) -> Unit
+fn WaitableSet::new() -> Self
+fn WaitableSet::poll(Self) -> (Int, Int, Int)
+fn WaitableSet::remove_waitable_from_all_sets(Int) -> Unit
+fn WaitableSet::wait(Self) -> (Int, Int, Int)
+
+pub(all) enum WaitableStatus {
+  Completed(Int)
+  Dropped(Int)
+  Cancelled(Int)
+  Blocking
+}
+fn WaitableStatus::count(Int) -> Int
+fn WaitableStatus::decode(Int) -> Self
+
+pub struct WaitableTask {
+  id : Int
+  waitable_set : WaitableSet
+  tasks : Map[Int, @coroutine.Coroutine]
+}
+fn WaitableTask::add_waitable(Self, Int) -> Unit
+fn WaitableTask::drop(Self) -> Unit
+fn WaitableTask::new() -> Self
+fn WaitableTask::remove_waitable(Self, Int) -> Unit
+fn WaitableTask::spawn(Self, async () -> Unit raise, Int) -> Unit
+fn WaitableTask::spawn_subtask(Self, async () -> Unit raise, Int) -> Unit
+fn WaitableTask::wait(Self) -> (Int, Int, Int)
 
 // Type aliases
 
 // Traits
+pub(open) trait Any {
+}
 

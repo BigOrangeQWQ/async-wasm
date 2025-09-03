@@ -8,6 +8,3 @@ pub fnalias @coroutine.pause
 
 ///|
 pub fnalias @coroutine.protect_from_cancel
-
-///|
-pub fnalias @component.with_waitable_set

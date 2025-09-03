@@ -1,7 +1,6 @@
 {
   "import": [
     "BigOrangeQWQ/async/event_loop",
-    "BigOrangeQWQ/async/coroutine",
-    "BigOrangeQWQ/async/component"
+    "BigOrangeQWQ/async/coroutine"
   ]
 }
