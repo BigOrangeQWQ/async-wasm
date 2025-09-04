@@ -1,7 +1,6 @@
 ///|
 pub struct WaitableTask {
   id : Int
-  waitable_set : WaitableSet
   tasks : Map[Int, @coroutine.Coroutine]
 } // TaskGroup
 
@@ -10,31 +9,49 @@ pub let task_map : Map[Int, WaitableTask] = {}
 
 ///|
 pub fn WaitableTask::new() -> WaitableTask {
-  let waitable_set = WaitableSet::new()
-  set_active_task_context(waitable_set.0)
-  { id: waitable_set.0, waitable_set, tasks: {} }
+  let waitable_set = waitable_set_new()
+  set_active_task_context(waitable_set)
+  { id: waitable_set, tasks: {} }
+}
+
+///|
+pub fn WaitableTask::from_raw(raw : Int) -> WaitableTask {
+  guard raw != 0
+  set_active_task_context(raw)
+  { id: raw, tasks: {} }
 }
 
 ///|
 pub fn WaitableTask::add_waitable(self : Self, waitable : Int) -> Unit {
-  self.waitable_set.join(waitable)
+  waitable_join(waitable, self.id)
 }
 
 ///|
 pub fn WaitableTask::wait(self : Self) -> (Int, Int, Int) {
-  self.waitable_set.wait()
+  let result : FixedArray[Int] = FixedArray::make(2, 0)
+  let result_ptr = int_array2ptr(result)
+  let event0 = waitable_set_wait(self.id, result_ptr)
+  (event0, result[0], result[1])
+}
+
+///|
+pub fn WaitableTask::poll(self : Self) -> (Int, Int, Int) {
+  let result : FixedArray[Int] = FixedArray::make(2, 0)
+  let result_ptr = int_array2ptr(result)
+  let event0 = waitable_set_poll(self.id, result_ptr)
+  (event0, result[0], result[1])
 }
 
 ///|
 pub fn WaitableTask::remove_waitable(self : Self, waitable : Int) -> Unit {
-  WaitableSet::remove_waitable_from_all_sets(waitable)
+  waitable_join(waitable, self.id)
   self.tasks.remove(waitable)
 }
 
 ///|
 pub fn WaitableTask::drop(self : Self) -> Unit {
   set_active_task_context(0) // clear current context
-  waitable_set_drop(self.waitable_set.0)
+  waitable_set_drop(self.id) // runner will drop the waitable set
   self.tasks.clear()
 }
 
@@ -114,7 +131,7 @@ pub fn WaitableTask::with_waitable_set(
   self : Self,
   f : async (Self) -> Unit raise,
   is_drop? : Bool = false,
-) -> Unit noraise {
+) -> @coroutine.Coroutine noraise {
   let parent = @coroutine.spawn(fn() {
     defer (if self.tasks.is_empty() {
       task_map.remove(self.id)
@@ -128,6 +145,7 @@ pub fn WaitableTask::with_waitable_set(
   })
   parent.run()
   @coroutine.rschedule() // start the parent coroutine 
+  parent
 }
 
 ///|
@@ -150,3 +168,4 @@ pub fn get_or_create_waitable_set() -> WaitableTask {
 pub fn set_active_task_context(ctx : Int) -> Unit {
   context_set(ctx)
 }
+

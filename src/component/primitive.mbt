@@ -179,3 +179,7 @@ pub fn waitable_set_wait(set : Int, result_ptr : Int) -> Int = "$root" "[waitabl
 
 ///|
 pub fn waitable_set_poll(set : Int, result_ptr : Int) -> Int = "$root" "[waitable-set-poll]"
+
+///|
+extern "wasm" fn int_array2ptr(array : FixedArray[Int]) -> Int =
+  #|(func (param i32) (result i32) local.get 0 i32.const 8 i32.add)
