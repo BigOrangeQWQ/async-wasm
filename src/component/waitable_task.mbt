@@ -1,24 +1,37 @@
 ///|
+pub enum TaskStatus {
+  Fail(Error)
+  Running
+  Done
+}
+
+///|
 pub struct WaitableTask {
   id : Int
   tasks : Map[Int, @coroutine.Coroutine]
+  task_defer : Array[() -> Unit raise]
+  mut status : TaskStatus
 } // TaskGroup
 
 ///|
 pub let task_map : Map[Int, WaitableTask] = {}
 
 ///|
+/// this avoids multiple lookups of current waitable task context
+let curr_task : Ref[WaitableTask?] = Ref::new(None)
+
+///|
 pub fn WaitableTask::new() -> WaitableTask {
   let waitable_set = waitable_set_new()
-  set_active_task_context(waitable_set)
-  { id: waitable_set, tasks: {} }
+  activate_waitable_task_context(waitable_set)
+  { id: waitable_set, tasks: {}, task_defer: [], status: Running }
 }
 
 ///|
 pub fn WaitableTask::from_raw(raw : Int) -> WaitableTask {
   guard raw != 0
-  set_active_task_context(raw)
-  { id: raw, tasks: {} }
+  activate_waitable_task_context(raw)
+  { id: raw, tasks: {}, task_defer: [], status: Running }
 }
 
 ///|
@@ -50,7 +63,7 @@ pub fn WaitableTask::remove_waitable(self : Self, waitable : Int) -> Unit {
 
 ///|
 pub fn WaitableTask::drop(self : Self) -> Unit {
-  set_active_task_context(0) // clear current context
+  activate_waitable_task_context(0) // clear current context
   waitable_set_drop(self.id) // runner will drop the waitable set
   self.tasks.clear()
 }
@@ -83,6 +96,11 @@ pub fn WaitableTask::spawn_subtask(
     f()
   })
   task.tasks[waitable] = coro
+}
+
+///|
+pub fn WaitableTask::add_defer(self : Self, f : () -> Unit raise) -> Unit {
+  self.task_defer.push(f)
 }
 
 ///|
@@ -132,13 +150,21 @@ pub fn WaitableTask::with_waitable_set(
   f : async (Self) -> Unit raise,
   is_drop? : Bool = false,
 ) -> @coroutine.Coroutine noraise {
-  let parent = @coroutine.spawn(fn() {
+  let parent = @coroutine.spawn(async fn() -> Unit raise {
     defer (if self.tasks.is_empty() {
+      self.status = Done
       task_map.remove(self.id)
+      // runner will drop the waitable set
+      // export async function needs to keep the waitable set
       if is_drop {
-        // runner will drop the waitable set
-        // export async function needs to keep the waitable set
         self.drop()
+      }
+
+      // this defer block recycles waitable task resources
+      while self.task_defer.pop() is Some(defer_block) {
+        defer_block() catch {
+          err => if self.status is Done { self.status = Fail(err) }
+        }
       }
     })
     f(self)
@@ -150,22 +176,24 @@ pub fn WaitableTask::with_waitable_set(
 
 ///|
 pub fn current_waitable_set() -> WaitableTask? {
-  let id = context_get()
-  task_map.get(id)
+  return curr_task.val
 }
 
 ///|
 pub fn get_or_create_waitable_set() -> WaitableTask {
-  guard current_waitable_set() is Some(ctx) else {
-    let ctx = WaitableTask::new()
-    task_map[ctx.id] = ctx
-    return ctx
+  let ctx = match current_waitable_set() {
+    Some(ctx) => ctx
+    None => {
+      let ctx = WaitableTask::new()
+      task_map[ctx.id] = ctx
+      ctx
+    }
   }
+  curr_task.val = Some(ctx)
   ctx
 }
 
 ///|
-pub fn set_active_task_context(ctx : Int) -> Unit {
+fn activate_waitable_task_context(ctx : Int) -> Unit {
   context_set(ctx)
 }
-

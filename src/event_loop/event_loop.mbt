@@ -26,7 +26,6 @@ pub fn yield_async(id : Int) -> Unit {
 }
 
 ///|
-/// TODO: this function may not be necessary
 pub fn spawn_async(id : Int, coro : @coroutine.Coroutine) -> Unit {
   guard curr_loop.val is Some(evloop)
   evloop.0[id] = coro

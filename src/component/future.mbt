@@ -46,17 +46,27 @@ pub fn[T] FutureVTable::new(
 pub struct Future[T](Int,FutureVTable[T])
 
 ///|
+pub fn[T] Future::new_future(
+  vtable : FutureVTable[T],
+) -> (Future[T], Future[T]) {
+  let handle = (vtable.new)()
+  let left_handle = handle.to_int()
+  let right_handle = left_handle >> 32
+  (Future(left_handle, vtable), Future(right_handle, vtable))
+}
+
+///|
 pub fn[T] Future::new(handle : Int, vtable : FutureVTable[T]) -> Future[T] {
   Future(handle, vtable)
 }
 
 ///|
-pub fn[T] Future::read(self : Future[T], ptr : Int) -> WaitableStatus {
+pub fn[T] Future::lower_read(self : Future[T], ptr : Int) -> WaitableStatus {
   WaitableStatus::decode((self.1.read)(self.0, ptr))
 }
 
 ///|
-pub fn[T] Future::write(self : Future[T], ptr : Int) -> WaitableStatus {
+pub fn[T] Future::lower_write(self : Future[T], ptr : Int) -> WaitableStatus {
   WaitableStatus::decode((self.1.write)(self.0, ptr))
 }
 
@@ -91,12 +101,40 @@ pub fn[T] Future::vtable(self : Future[T]) -> FutureVTable[T] {
 }
 
 ///|
-pub async fn[T] Future::async_write(self : Future[T], value : T) -> Unit raise {
+pub struct FutureReader[T](Future[T])
+
+///|
+pub struct FutureWriter[T](Future[T])
+
+///|
+pub fn[T] FutureReader::new(future : Future[T]) -> FutureReader[T] {
+  FutureReader(future)
+}
+
+///|
+pub fn[T] FutureWriter::new(future : Future[T]) -> FutureWriter[T] {
+  FutureWriter(future)
+}
+
+///|
+pub async fn[T] FutureReader::read(self : FutureReader[T]) -> T raise {
+  self.0.read()
+}
+
+///|
+pub async fn[T] FutureWriter::write(
+  self : FutureWriter[T],
+  value : T,
+) -> Unit raise {
+  self.0.write(value)
+}
+
+///|
+pub async fn[T] Future::write(self : Future[T], value : T) -> Unit raise {
   let buf_ptr = (self.1.malloc)()
   (self.1.lower)(value, buf_ptr)
-  // defer (self.1.free)(buf_ptr) TODO: may cause read after free,need check
-  let status = self.write(buf_ptr)
-  defer (self.1.drop_writable)(self.0)
+  let status = self.lower_write(buf_ptr)
+  defer (self.1.free)(buf_ptr)
   match status {
     Completed(_) => return
     Dropped(_) | Cancelled(_) => raise @coroutine.Cancelled
@@ -107,11 +145,10 @@ pub async fn[T] Future::async_write(self : Future[T], value : T) -> Unit raise {
 }
 
 ///|
-pub async fn[T] Future::async_read(self : Future[T]) -> T raise {
+pub async fn[T] Future::read(self : Future[T]) -> T raise {
   let buf_ptr = (self.1.malloc)()
+  let status = self.lower_read(buf_ptr)
   defer (self.1.free)(buf_ptr)
-  let status = self.read(buf_ptr)
-  defer self.drop_readable()
   match status {
     Completed(_) => return (self.1.lift)(buf_ptr)
     Dropped(_) | Cancelled(_) => raise @coroutine.Cancelled
@@ -120,6 +157,18 @@ pub async fn[T] Future::async_read(self : Future[T]) -> T raise {
   // when receive event, continue this coroutine
   return (self.1.lift)(buf_ptr)
 }
+
+pub async fn[T] Future::read_then_drop(self : Future[T]) -> T raise {
+  defer self.drop_readable()
+  let x = self.read() // defer bug
+  return x // self.read()
+}
+
+pub async fn[T] Future::write_then_drop(self : Future[T], value : T) -> Unit raise {
+  defer self.drop_writable()
+  return self.write(value)
+}
+
 
 ///|
 pub struct StreamVTable[T] {
@@ -166,6 +215,7 @@ pub fn[T] StreamVTable::new(
 }
 
 ///|
+// TODO: stream async read/write
 pub struct Stream[T](Int,StreamVTable[T])
 
 ///|
@@ -219,35 +269,4 @@ pub fn[T] Stream::handle(self : Stream[T]) -> Int {
 ///|
 pub fn[T] Stream::vtable(self : Stream[T]) -> StreamVTable[T] {
   self.1
-}
-
-///|
-pub async fn[T] Stream::async_write(self : Stream[T], value : T) -> Unit raise {
-  let buf_ptr = (self.1.malloc)()
-  (self.1.lower)(value, buf_ptr)
-  defer (self.1.free)(buf_ptr)
-  let status = self.write(buf_ptr, 1)
-  defer (self.1.drop_writable)(self.0)
-  match status {
-    Blocking => @coroutine.suspend()
-    Completed(_) => return
-    Dropped(_) | Cancelled(_) => raise @coroutine.Cancelled
-  }
-  // when receive event, continue this coroutine
-  return
-}
-
-///|
-pub async fn[T] Stream::async_read(self : Stream[T]) -> T? raise {
-  let buf_ptr = (self.1.malloc)()
-  defer (self.1.free)(buf_ptr)
-  let status = self.read(buf_ptr, 1)
-  defer ignore(self.drop_readable())
-  match status {
-    Blocking => @coroutine.suspend()
-    Completed(_) => return Some((self.1.lift)(buf_ptr))
-    Dropped(_) | Cancelled(_) => raise @coroutine.Cancelled
-  }
-  // when receive event, continue this coroutine
-  return Some((self.1.lift)(buf_ptr))
 }
