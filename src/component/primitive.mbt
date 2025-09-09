@@ -161,9 +161,7 @@ pub fn context_set(task : Int) = "$root" "[context-set-0]"
 pub fn context_get() -> Int = "$root" "[context-get-0]"
 
 ///|
-pub fn task_cancel() -> Unit = "$root" "[task-cancel]"
-
-///|
+pub fn task_cancel() = "[export]$root" "[task-cancel]"
 
 ///|
 pub fn waitable_set_new() -> Int = "$root" "[waitable-set-new]"
