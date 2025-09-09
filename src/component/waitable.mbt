@@ -10,7 +10,7 @@ pub(open) trait WaitableTrait {
 
   is_done(Self) -> Bool
   
-  defer_task(Self) -> Unit raise
+  defer_task(Self) -> Unit
 
   handle(Self) -> Int
 }

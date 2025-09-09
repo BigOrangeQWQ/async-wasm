@@ -6,7 +6,7 @@ pub enum TaskStatus {
 }
 
 ///|
-pub struct WaitableTask {
+pub struct Task {
   id : Int
   tasks : Map[Int, (&WaitableTrait, @coroutine.Coroutine)]
   task_defer : Array[() -> Unit raise]
@@ -14,33 +14,33 @@ pub struct WaitableTask {
 } // TaskGroup
 
 ///|
-pub let task_map : Map[Int, WaitableTask] = {}
+pub let task_map : Map[Int, Task] = {}
 
 ///|
 /// this avoids multiple lookups of current waitable task context
-let curr_task : Ref[WaitableTask?] = Ref::new(None)
+let curr_task : Ref[Task?] = Ref::new(None)
 
 ///|
-pub fn WaitableTask::new() -> WaitableTask {
+pub fn Task::new() -> Task {
   let waitable_set = waitable_set_new()
   activate_waitable_task_context(waitable_set)
   { id: waitable_set, tasks: {}, task_defer: [], status: Running }
 }
 
 ///|
-pub fn WaitableTask::from_raw(raw : Int) -> WaitableTask {
+pub fn Task::from_raw(raw : Int) -> Task {
   guard raw != 0
   activate_waitable_task_context(raw)
   { id: raw, tasks: {}, task_defer: [], status: Running }
 }
 
 ///|
-pub fn WaitableTask::add_waitable(self : Self, waitable : Int) -> Unit {
+pub fn Task::add_waitable(self : Self, waitable : Int) -> Unit {
   waitable_join(waitable, self.id)
 }
 
 ///|
-pub fn WaitableTask::set_wait(self : Self) -> (Int, Int, Int) {
+pub fn Task::set_wait(self : Self) -> (Int, Int, Int) {
   let result : FixedArray[Int] = FixedArray::make(2, 0)
   let result_ptr = int_array2ptr(result)
   let event0 = waitable_set_wait(self.id, result_ptr)
@@ -48,7 +48,7 @@ pub fn WaitableTask::set_wait(self : Self) -> (Int, Int, Int) {
 }
 
 ///|
-pub fn WaitableTask::set_poll(self : Self) -> (Int, Int, Int) {
+pub fn Task::set_poll(self : Self) -> (Int, Int, Int) {
   let result : FixedArray[Int] = FixedArray::make(2, 0)
   let result_ptr = int_array2ptr(result)
   let event0 = waitable_set_poll(self.id, result_ptr)
@@ -56,19 +56,25 @@ pub fn WaitableTask::set_poll(self : Self) -> (Int, Int, Int) {
 }
 
 ///|
-pub fn WaitableTask::remove_waitable(self : Self, waitable : Int) -> Unit {
+pub fn Task::remove_waitable(self : Self, waitable : Int) -> Unit {
   waitable_join(waitable, self.id)
-  self.tasks.remove(waitable)
+  let waitable= self.tasks.get(waitable) 
+  guard waitable is Some((waitable, coro)) else {
+    return
+  }
+  waitable.defer_task()
+  waitable.drop()
+  self.tasks.remove(waitable.handle())
 }
 
 ///|
-pub fn WaitableTask::drop(self : Self) -> Unit {
+pub fn Task::drop(self : Self) -> Unit {
   activate_waitable_task_context(0) // clear current context
   waitable_set_drop(self.id) // runner will drop the waitable set
   self.tasks.clear()
 }
 
-pub fn WaitableTask::spawn(
+pub fn Task::spawn(
   task : Self,
   f : async () -> Unit raise,
   tracing : &WaitableTrait,
@@ -83,7 +89,7 @@ pub fn WaitableTask::spawn(
 
 ///|
 /// This function spawns a coroutine to run the async function and waits for its completion
-pub async fn WaitableTask::wait(
+pub async fn Task::wait(
   task : Self,
   f : async () -> Unit raise,
   tracing : &WaitableTrait,
@@ -98,7 +104,7 @@ pub async fn WaitableTask::wait(
 }
 
 ///|
-pub fn WaitableTask::add_defer(self : Self, f : () -> Unit raise) -> Unit {
+pub fn Task::add_defer(self : Self, f : () -> Unit raise) -> Unit {
   self.task_defer.push(f)
 }
 
@@ -129,7 +135,7 @@ pub fn callback(event : Int, waitable_id : Int, code : Int) -> Int {
 }
 
 ///|
-pub fn WaitableTask::with_waitable_set(
+pub fn Task::with_waitable_set(
   self : Self,
   f : async (Self) -> Unit raise,
   is_drop? : Bool = false,
@@ -160,17 +166,17 @@ pub fn WaitableTask::with_waitable_set(
 }
 
 ///|
-pub fn current_waitable_set() -> WaitableTask? {
+pub fn current_waitable_set() -> Task? {
   guard curr_task.val is Some(ctx) else { task_map.get(context_get()) }
   Some(ctx)
 }
 
 ///|
-pub fn get_or_create_waitable_set() -> WaitableTask {
+pub fn get_or_create_waitable_set() -> Task {
   let ctx = match current_waitable_set() {
     Some(ctx) => ctx
     None => {
-      let ctx = WaitableTask::new()
+      let ctx = Task::new()
       task_map[ctx.id] = ctx
       ctx
     }
