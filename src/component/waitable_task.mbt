@@ -1,5 +1,5 @@
 ///|
-pub enum TaskStatus {
+enum TaskStatus {
   Fail(Error)
   Running
   Done
@@ -8,7 +8,7 @@ pub enum TaskStatus {
 ///|
 pub struct Task {
   id : Int
-  tasks : Map[Int, (&WaitableTrait, @coroutine.Coroutine)]
+  tasks : Map[Int, (&Waitable, @coroutine.Coroutine)]
   task_defer : Array[() -> Unit raise]
   mut status : TaskStatus
 } // TaskGroup
@@ -34,13 +34,16 @@ pub fn Task::from_raw(raw : Int) -> Task {
   { id: raw, tasks: {}, task_defer: [], status: Running }
 }
 
-///|
-pub fn Task::add_waitable(self : Self, waitable : Int) -> Unit {
-  waitable_join(waitable, self.id)
+
+pub fn Task::is_done(self : Self) -> Bool {
+  match self.status {
+    Running => false
+    Done | Fail(_) => true
+  }
 }
 
 ///|
-pub fn Task::set_wait(self : Self) -> (Int, Int, Int) {
+pub fn Task::blocking_wait(self : Self) -> (Int, Int, Int) {
   let result : FixedArray[Int] = FixedArray::make(2, 0)
   let result_ptr = int_array2ptr(result)
   let event0 = waitable_set_wait(self.id, result_ptr)
@@ -48,7 +51,7 @@ pub fn Task::set_wait(self : Self) -> (Int, Int, Int) {
 }
 
 ///|
-pub fn Task::set_poll(self : Self) -> (Int, Int, Int) {
+pub fn Task::poll(self : Self) -> (Int, Int, Int) {
   let result : FixedArray[Int] = FixedArray::make(2, 0)
   let result_ptr = int_array2ptr(result)
   let event0 = waitable_set_poll(self.id, result_ptr)
@@ -56,35 +59,46 @@ pub fn Task::set_poll(self : Self) -> (Int, Int, Int) {
 }
 
 ///|
-pub fn Task::remove_waitable(self : Self, waitable : Int) -> Unit {
-  waitable_join(waitable, self.id)
-  let waitable= self.tasks.get(waitable) 
-  guard waitable is Some((waitable, coro)) else {
-    return
-  }
-  waitable.defer_task()
+fn[T : Waitable] Task::add_waitable(self : Self, waitable : T) -> Unit {
+  waitable_join(waitable.handle(), self.id)
+}
+
+///|
+/// When a waitable is done will be removed from the waitable set
+/// then waitable will be dropped
+fn[T : Waitable] Task::remove_waitable(self : Self, waitable : T) -> Unit {
+  waitable_join(waitable.handle(), self.id)
+  let waitable = self.tasks.get(waitable.handle())
+  guard waitable is Some((waitable, _)) else { return }
   waitable.drop()
   self.tasks.remove(waitable.handle())
 }
 
 ///|
+/// Drop the waitable set and all waitables in it
 pub fn Task::drop(self : Self) -> Unit {
   activate_waitable_task_context(0) // clear current context
   waitable_set_drop(self.id) // runner will drop the waitable set
+
+  // remove all waitables and drop them
+  for task in self.tasks.values() {
+    task.0.drop()
+  }
   self.tasks.clear()
 }
 
+///|
 pub fn Task::spawn(
   task : Self,
   f : async () -> Unit raise,
-  tracing : &WaitableTrait,
+  state : &Waitable,
 ) -> Unit {
   let coro = @coroutine.spawn(fn() {
-    task.add_waitable(tracing.handle())
-    defer task.remove_waitable(tracing.handle())
+    task.add_waitable(state)
+    defer task.remove_waitable(state)
     f()
   })
-  task.tasks[tracing.handle()] = (tracing, coro)
+  task.tasks[state.handle()] = (state, coro)
 }
 
 ///|
@@ -92,14 +106,14 @@ pub fn Task::spawn(
 pub async fn Task::wait(
   task : Self,
   f : async () -> Unit raise,
-  tracing : &WaitableTrait,
+  state : &Waitable,
 ) -> Unit raise {
   let coro = @coroutine.spawn(fn() {
-    task.add_waitable(tracing.handle())
-    defer task.remove_waitable(tracing.handle())
+    task.add_waitable(state)
+    defer task.remove_waitable(state)
     f()
   })
-  task.tasks[tracing.handle()] = (tracing, coro)
+  task.tasks[state.handle()] = (state, coro)
   @coroutine.Coroutine::wait(coro)
 }
 
@@ -122,10 +136,11 @@ pub fn callback(event : Int, waitable_id : Int, code : Int) -> Int {
       coro.run()
     }
     TaskCancel => {
-      let _ = waitable.cancel()
+      task.drop()
+      // let _ = waitable.cancel()
       task_cancel() // TODO: need validate this method
     }
-    EventNone => () 
+    EventNone => ()
   }
   @coroutine.rschedule()
   if waitable.is_done() {
@@ -139,8 +154,9 @@ pub fn Task::with_waitable_set(
   self : Self,
   f : async (Self) -> Unit raise,
   is_drop? : Bool = false,
-) -> @coroutine.Coroutine noraise {
+) -> Unit noraise {
   let parent = @coroutine.spawn(async fn() -> Unit raise {
+    self.status = Running
     defer (if self.tasks.is_empty() {
       self.status = Done
       task_map.remove(self.id)
@@ -162,7 +178,6 @@ pub fn Task::with_waitable_set(
   })
   parent.run()
   @coroutine.rschedule() // start the parent coroutine 
-  parent
 }
 
 ///|
