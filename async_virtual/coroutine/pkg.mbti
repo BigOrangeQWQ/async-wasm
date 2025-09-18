@@ -1,0 +1,36 @@
+package "BigOrangeQWQ/async/coroutine"
+
+// Values
+
+fn is_being_cancelled() -> Bool
+
+fn current_coroutine() -> Coroutine
+
+fn reschedule() -> Unit
+
+fn no_more_work() -> Bool
+
+async fn pause() -> Unit
+
+async fn protect_from_cancel(async () -> Unit) -> Unit
+
+fn spawn(async () -> Unit) -> Coroutine
+
+async fn suspend() -> Unit
+
+// Types and methods
+type Coroutine
+// fn Coroutine::cancel(Self) -> Unit
+// fn Coroutine::unwrap(Coroutine) -> Unit raise 
+// async fn Coroutine::wait(Coroutine) -> Unit
+// fn Coroutine::wake(Coroutine) -> Unit
+
+fn coroutine_cancel(Coroutine) -> Unit
+fn coroutine_unwrap(Coroutine) -> Unit raise
+async fn coroutine_wait(Coroutine) -> Unit
+fn coroutine_wake(Coroutine) -> Unit
+
+
+// Type aliases
+
+// Traits

@@ -1,0 +1,16 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "BigOrangeQWQ/async/coroutine"
+
+// Values
+async fn perform_job(Job) -> Int
+
+fn register_hook(init? : () -> Unit, exit? : () -> Unit) -> Unit
+
+fn with_event_loop(async () -> Unit) -> Unit raise
+
+type Job
+
+// Type aliases
+
+// Traits
+

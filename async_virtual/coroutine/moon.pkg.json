@@ -1,0 +1,8 @@
+{
+  "virtual": {
+    "has-default": true
+  },
+  "import": [
+   { "path" :"BigOrangeQWQ/async/async_primitive", "alias": "primitive"}
+  ]
+}
