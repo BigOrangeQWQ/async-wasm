@@ -4,8 +4,8 @@ pub(open) trait Waitable {
   // run with code
   update(Self, code~: Int) -> Unit
 
-  // receive cancel signal do something
-  cancel(Self) -> Int
+  // run with cancel
+  cancel(Self) -> Unit
 
   // drop the waitable resource
   drop(Self) -> Unit

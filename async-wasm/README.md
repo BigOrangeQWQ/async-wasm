@@ -49,9 +49,12 @@ pub fn async_str_argument_and_result_callback(
 pub fn wasmExportAsyncStrArgumentAndResult(p0 : Int, p1 : Int) -> Int {
   let result = @ffi.ptr2str(p0, p1)
   let task = @component.get_or_create_waitable_set()
-  task.with_waitable_set(_ => {
-    let result0 : String = async_str_argument_and_result(result)
-    world_test_async_str_argument_and_result_task_return(result0)
+  task.with_waitable_set(task => {
+
+    task.spawn(task => {
+          let result0 : String = async_str_argument_and_result(task, result)
+          world_test_async_str_argument_and_result_task_return(result0)
+    })
   })
   return @ffi.CallbackCode::Wait(task.id).encode()
 }
@@ -107,8 +110,8 @@ world runner {
 pub fn wasmExportAsyncReadFuture(p0 : Int) -> Int noraise {
   let result = @ffi.Future::new(p0, @i.static_ffi_future_unit_table)
   let task = @component.get_or_create_waitable_set()
-  task.with_waitable_set(_ => {
-    async_read_future(result)
+  task.with_waitable_set(task => {
+    async_read_future(task, result)
     world_test_async_read_future_task_return()
   })
   return @ffi.CallbackCode::Wait(task.id).encode()

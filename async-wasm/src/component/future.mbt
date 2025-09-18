@@ -81,8 +81,8 @@ pub impl[T] Waitable for FutureReader[T] with handle(self) -> Int {
 }
 
 ///|
-pub impl[T] Waitable for FutureReader[T] with cancel(self) -> Int {
-  (self.vtable.cancel_read)(self.handle)
+pub impl[T] Waitable for FutureReader[T] with cancel(self) -> Unit {
+  self.code = Some((self.vtable.cancel_read)(self.handle))
 }
 
 ///|
@@ -173,8 +173,11 @@ pub impl[T] Waitable for FutureWriter[T] with handle(self) -> Int {
 }
 
 ///|
-pub impl[T] Waitable for FutureWriter[T] with cancel(self) -> Int {
-  (self.vtable.cancel_write)(self.handle)
+pub impl[T] Waitable for FutureWriter[T] with cancel(self) -> Unit {
+  if self.code is Some(code) && WaitableStatus::decode(code) is Cancelled(_) {
+    return
+  }
+  self.code = Some((self.vtable.cancel_write)(self.handle))
 }
 
 ///|

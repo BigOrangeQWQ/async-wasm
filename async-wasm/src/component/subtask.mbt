@@ -19,8 +19,11 @@ pub impl Waitable for Subtask with handle(self) -> Int {
 }
 
 ///|
-pub impl Waitable for Subtask with cancel(self) -> Int {
-  subtask_cancel(self.handle)
+pub impl Waitable for Subtask with cancel(self) -> Unit {
+  if self.code is Some(code) && CallbackCode::decode(code) is Cancel(_) {
+    return
+  }
+  self.code = Some(subtask_cancel(self.handle))
 }
 
 ///|

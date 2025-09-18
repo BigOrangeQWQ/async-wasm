@@ -43,20 +43,21 @@ pub fn SubtaskStatus::handle(self : Self) -> Int {
 }
 
 ///|
-pub(all) enum EventCode {
-  EventNone = 0
-  Subtask = 1
-  StreamRead = 2
-  StreamWrite = 3
-  FutureRead = 4
-  FutureWrite = 5
-  TaskCancel = 6
+pub(all) enum Event {
+  None
+  Subtask
+  StreamRead 
+  StreamWrite
+  FutureRead
+  FutureWrite
+  // waitable set (poll/wait) being cancelled
+  TaskCancel
 }
 
 ///|
-pub fn EventCode::decode(int : Int) -> EventCode {
+pub fn Event::decode(int : Int) -> Event {
   match int {
-    0 => EventNone
+    0 => None
     1 => Subtask
     2 => StreamRead
     3 => StreamWrite
@@ -68,9 +69,9 @@ pub fn EventCode::decode(int : Int) -> EventCode {
 }
 
 ///|
-pub fn EventCode::encode(self : Self) -> Int {
+pub fn Event::encode(self : Self) -> Int {
   match self {
-    EventNone => 0
+    None => 0
     Subtask => 1
     StreamRead => 2
     StreamWrite => 3

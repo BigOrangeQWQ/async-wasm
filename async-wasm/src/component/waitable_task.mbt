@@ -17,28 +17,32 @@ pub struct Task {
 pub let task_map : Map[Int, Task] = {}
 
 ///|
-/// this avoids multiple lookups of current waitable task context
-let curr_task : Ref[Task?] = Ref::new(None)
-
-///|
 pub fn Task::new() -> Task {
   let waitable_set = waitable_set_new()
-  activate_waitable_task_context(waitable_set)
+  context_set(waitable_set)
   { id: waitable_set, tasks: {}, task_defer: [], status: Running }
 }
 
 ///|
 pub fn Task::from_raw(raw : Int) -> Task {
   guard raw != 0
-  activate_waitable_task_context(raw)
+  context_set(raw)
   { id: raw, tasks: {}, task_defer: [], status: Running }
 }
 
-
+///|
 pub fn Task::is_done(self : Self) -> Bool {
   match self.status {
     Running => false
     Done | Fail(_) => true
+  }
+}
+
+///|
+pub fn Task::is_fail(self : Self) -> Error? {
+  match self.status {
+    Fail(err) => Some(err)
+    _ => None
   }
 }
 
@@ -77,14 +81,24 @@ fn[T : Waitable] Task::remove_waitable(self : Self, waitable : T) -> Unit {
 ///|
 /// Drop the waitable set and all waitables in it
 pub fn Task::drop(self : Self) -> Unit {
-  activate_waitable_task_context(0) // clear current context
-  waitable_set_drop(self.id) // runner will drop the waitable set
-
+  // clear current task context
+  context_set(0)
+  // runner will drop the waitable set
+  defer waitable_set_drop(self.id)
   // remove all waitables and drop them
   for task in self.tasks.values() {
     task.0.drop()
   }
   self.tasks.clear()
+}
+
+pub fn Task::cancel(self : Self) -> Unit {
+  task_cancel()
+  // remove all waitables and drop them
+  for task in self.tasks.values() {
+    task.0.drop()
+  }
+  self.tasks.clear() 
 }
 
 ///|
@@ -126,27 +140,36 @@ pub fn Task::add_defer(self : Self, f : () -> Unit raise) -> Unit {
 /// This function is core of the wasm async runtime
 /// It is called by the host when an event happens
 pub fn callback(event : Int, waitable_id : Int, code : Int) -> Int {
-  // Handle the event for the current waitable task
-  guard current_waitable_set() is Some(task)
-  let (waitable, coro) = task.tasks[waitable_id]
-  let event = EventCode::decode(event)
+  let event = Event::decode(event)
+  // Handle the event for the current waitable task  
   match event {
     FutureRead | FutureWrite | StreamRead | StreamWrite | Subtask => {
+      guard current_waitable_set() is Some(task)
+      let (waitable, coro) = task.tasks[waitable_id]
       waitable.update(code~)
       coro.run()
+      // schedule next coroutine
+      @coroutine.rschedule()
+      if waitable.is_done() {
+        return CallbackCode::Exit.encode()
+      }
+      return CallbackCode::Wait(waitable_id).encode()
     }
     TaskCancel => {
-      task.drop()
-      // let _ = waitable.cancel()
-      task_cancel() // TODO: need validate this method
+      guard current_waitable_set() is Some(task)
+      task.tasks
+      .values()
+      .each(task => {
+        let _ = task.0.drop()
+      })
+      @coroutine.rschedule()
+      return CallbackCode::Exit.encode()
     }
-    EventNone => ()
+    None => {
+      @coroutine.rschedule()
+      return CallbackCode::Exit.encode()
+    }
   }
-  @coroutine.rschedule()
-  if waitable.is_done() {
-    return CallbackCode::Exit.encode()
-  }
-  return CallbackCode::Wait(waitable_id).encode()
 }
 
 ///|
@@ -155,12 +178,12 @@ pub fn Task::with_waitable_set(
   f : async (Self) -> Unit raise,
   is_drop? : Bool = false,
 ) -> Unit noraise {
-  let parent = @coroutine.spawn(async fn() -> Unit raise {
+  let mut is_drop = is_drop
+  let parent = @coroutine.spawn(async fn() -> Unit {
     self.status = Running
     defer (if self.tasks.is_empty() {
       self.status = Done
       task_map.remove(self.id)
-      curr_task.val = None
       // runner will drop the waitable set
       // export async function needs to keep the waitable set
       if is_drop {
@@ -174,7 +197,13 @@ pub fn Task::with_waitable_set(
         }
       }
     })
-    f(self)
+    f(self) catch {
+      err =>
+        if self.status is Running {
+          self.status = Fail(err)
+          is_drop = true
+        }
+    }
   })
   parent.run()
   @coroutine.rschedule() // start the parent coroutine 
@@ -182,25 +211,43 @@ pub fn Task::with_waitable_set(
 
 ///|
 pub fn current_waitable_set() -> Task? {
-  guard curr_task.val is Some(ctx) else { task_map.get(context_get()) }
-  Some(ctx)
+  let ctx = context_get()
+  if ctx == 0 {
+    None
+  } else {
+    match task_map.get(ctx) {
+      Some(task) => Some(task)
+      None => {
+        let ctx = Task::from_raw(ctx)
+        task_map[ctx.id] = ctx
+        Some(ctx)
+      }
+    }
+  }
 }
 
 ///|
 pub fn get_or_create_waitable_set() -> Task {
-  let ctx = match current_waitable_set() {
-    Some(ctx) => ctx
-    None => {
-      let ctx = Task::new()
-      task_map[ctx.id] = ctx
-      ctx
+  let ctx = context_get()
+  if ctx == 0 {
+    let ctx = Task::new()
+    task_map[ctx.id] = ctx
+    ctx
+  } else {
+    match task_map.get(ctx) {
+      Some(task) => task
+      None => {
+        let ctx = Task::from_raw(ctx)
+        task_map[ctx.id] = ctx
+        ctx
+      }
     }
+
   }
-  curr_task.val = Some(ctx)
-  ctx
 }
 
 ///|
-fn activate_waitable_task_context(ctx : Int) -> Unit {
-  context_set(ctx)
+pub fn create_waitable_set() -> Task {
+  guard current_waitable_set() is None
+  Task::new()
 }
