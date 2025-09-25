@@ -1,0 +1,8 @@
+{
+  "name": "BigOrangeQWQ/async_wasm_components",
+  "deps": {
+    "BigOrangeQWQ/async_virtual": {
+      "path": "../async_virtual"
+    }
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "import": [
+    "BigOrangeQWQ/async_wasm_components/primitive",
+    "BigOrangeQWQ/async_virtual/coroutine",
+    "BigOrangeQWQ/async_wasm_components/event_loop"
+  ]
+}

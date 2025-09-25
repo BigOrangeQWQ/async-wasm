@@ -1,0 +1,9 @@
+{
+    "implement": "BigOrangeQWQ/async_virtual/event_loop",
+    "import": [
+      "BigOrangeQWQ/async_wasm_components/primitive",
+      "BigOrangeQWQ/async_virtual/coroutine",
+      "BigOrangeQWQ/async_virtual/callback",
+      "BigOrangeQWQ/async_virtual/async_primitive"
+    ]
+}

@@ -1,0 +1,5 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "BigOrangeQWQ/async/callback"
+
+// Values
+fn callback(Int, Int, Int) -> Int

@@ -1,5 +1,5 @@
 // Generated using `moon info`, DON'T EDIT IT
-package "BigOrangeQWQ/async/coroutine"
+package "BigOrangeQWQ/async/event_loop"
 
 // Values
 async fn perform_job(Job) -> Int

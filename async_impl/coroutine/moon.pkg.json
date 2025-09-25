@@ -1,0 +1,6 @@
+{
+    "implement": "BigOrangeQWQ/async_virtual/coroutine",
+    "import": [
+      "BigOrangeQWQ/async_wasm_components/primitive"
+    ]
+}
