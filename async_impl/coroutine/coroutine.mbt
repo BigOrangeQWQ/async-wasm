@@ -188,3 +188,7 @@ pub async fn coroutine_wait(coro: Coroutine) -> Unit raise {
 pub fn coroutine_wake(coro: Coroutine) -> Unit {
   coro.wake()
 }
+
+pub fn coroutine_eq(c1: Coroutine, c2: Coroutine) -> Bool {
+  c1 == c2
+}
